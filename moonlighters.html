@@ -1,0 +1,1354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Setlist Builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#16150F;
+  --ink-soft:#5A5442;
+  --paper:#FFFFFF;
+  --manila:#CFC3A3;
+  --manila-lt:#DED4B8;
+  --edge:#A2946F;
+  --hi:#FFE94D;
+  --red:#BC3B27;
+  --green:#4C7A38;
+  --disp:'Oswald','Arial Narrow',Arial,sans-serif;
+  --ui:ui-sans-serif,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;font-family:var(--ui);color:var(--ink);
+  background:var(--manila);
+  background-image:repeating-linear-gradient(90deg,rgba(0,0,0,.022) 0 1px,transparent 1px 3px);
+  display:flex;flex-direction:column;overflow:hidden;
+}
+
+/* ---------- top bars ---------- */
+.topbar{
+  background:var(--ink);color:var(--manila-lt);
+  display:flex;align-items:center;gap:18px;padding:0 16px;height:54px;flex:none;
+}
+.brand{font-family:var(--disp);font-weight:700;font-size:21px;letter-spacing:.22em;text-transform:uppercase}
+.brand span{color:var(--hi)}
+.bandtag{font-family:var(--disp);font-size:13px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--manila-lt);opacity:.8;border-left:1px solid #4a4536;padding-left:18px}
+.gigmeta{display:flex;gap:8px;align-items:center;margin-left:auto}
+.topbar input{
+  background:transparent;border:0;border-bottom:1px solid #4a4536;color:var(--manila-lt);
+  font-family:var(--disp);font-size:15px;padding:4px 2px;letter-spacing:.04em;
+}
+.topbar input:focus{outline:none;border-bottom-color:var(--hi)}
+.topbar input::placeholder{color:#6d6754}
+
+.toolbar{
+  flex:none;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  padding:9px 16px;background:var(--manila-lt);border-bottom:2px solid var(--ink);
+}
+.fld{display:flex;align-items:center;gap:6px}
+.fld label{
+  font-family:var(--disp);font-size:11px;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--ink-soft);white-space:nowrap;
+}
+.fld input[type=text],.fld input[type=number],.fld select{
+  font-family:var(--ui);font-size:13px;padding:5px 7px;
+  border:1px solid var(--edge);background:var(--paper);color:var(--ink);border-radius:0;
+}
+.fld input[type=number]{width:62px}
+#sheetUrl{width:min(32vw,360px)}
+.fld input:focus,.fld select:focus{outline:2px solid var(--hi);outline-offset:-1px}
+.chk{display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none}
+.chk input{accent-color:var(--ink);width:15px;height:15px}
+.sep{width:1px;height:26px;background:var(--edge)}
+
+button{
+  font-family:var(--disp);font-size:12px;font-weight:600;letter-spacing:.11em;text-transform:uppercase;
+  padding:7px 13px;border:1.5px solid var(--ink);background:var(--paper);color:var(--ink);
+  cursor:pointer;border-radius:0;transition:background .12s,color .12s;
+}
+button:hover{background:var(--ink);color:var(--manila-lt)}
+button:focus-visible{outline:3px solid var(--hi);outline-offset:2px}
+button.primary{background:var(--ink);color:var(--hi)}
+button.primary:hover{background:#000}
+button.ghost{border-color:var(--edge);color:var(--ink-soft);background:transparent}
+button.ghost:hover{background:var(--ink);color:var(--manila-lt);border-color:var(--ink)}
+
+/* ---------- main ---------- */
+.main{flex:1;display:flex;min-height:0}
+
+/* library */
+.library{
+  width:290px;flex:none;display:flex;flex-direction:column;min-height:0;
+  background:var(--manila-lt);border-right:2px solid var(--ink);
+}
+.libhead{padding:11px 12px 8px;border-bottom:1px solid var(--edge)}
+.libtitle{
+  font-family:var(--disp);font-weight:700;font-size:13px;letter-spacing:.2em;text-transform:uppercase;
+  display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;
+}
+.libtitle em{font-style:normal;font-size:11px;color:var(--ink-soft);letter-spacing:.08em}
+.libhead input,.libhead select{
+  width:100%;font-family:var(--ui);font-size:13px;padding:6px 8px;
+  border:1px solid var(--edge);background:var(--paper);border-radius:0;margin-bottom:6px;
+}
+.libhead input:focus,.libhead select:focus{outline:2px solid var(--hi);outline-offset:-1px}
+.libtip{font-size:11px;line-height:1.45;color:var(--ink-soft)}
+.libtip b{font-weight:700;color:var(--ink)}
+.liblist{flex:1;overflow-y:auto;padding:6px}
+.song-card{
+  background:var(--paper);border:1px solid var(--edge);border-left:4px solid var(--ink);
+  padding:7px 9px;margin-bottom:5px;cursor:grab;position:relative;
+}
+.song-card:hover{border-left-color:var(--hi);background:#FFFEF6}
+.song-card.used{opacity:.5;border-left-color:var(--edge);cursor:not-allowed}
+.song-card.used:hover{background:var(--paper);border-left-color:var(--edge)}
+.song-card .tag.in{background:var(--ink)}
+.song-card.ghost{border-left-color:var(--red);border-left-style:dashed}
+.song-card .tag{
+  display:inline-block;font-family:var(--disp);font-size:9.5px;font-weight:600;
+  letter-spacing:.1em;text-transform:uppercase;color:#fff;background:var(--red);
+  padding:1px 5px;margin-top:5px;
+}
+.song-card.dragging{opacity:.3}
+.sc-row{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.sc-title{font-family:var(--disp);font-weight:600;font-size:14.5px;line-height:1.2}
+.sc-time{font-family:var(--disp);font-weight:500;font-size:13px;color:var(--ink-soft);font-variant-numeric:tabular-nums;flex:none}
+.sc-sub{font-size:11px;color:var(--ink-soft);margin-top:2px;line-height:1.35}
+.sc-note{font-size:11px;color:#7d7660;margin-top:3px;line-height:1.35;font-style:italic}
+.emptylib{padding:22px 14px;color:var(--ink-soft);font-size:13px;line-height:1.6;text-align:center}
+
+/* sets area */
+.sets{flex:1;min-width:0;overflow-x:auto;overflow-y:auto;padding:20px 18px 24px;display:flex;gap:20px;align-items:flex-start}
+.setcol{flex:0 0 340px;display:flex;flex-direction:column}
+
+.tape{
+  align-self:flex-start;background:var(--ink);color:var(--manila-lt);
+  font-family:var(--disp);font-weight:600;font-size:12.5px;letter-spacing:.24em;text-transform:uppercase;
+  padding:5px 20px 5px 16px;margin-left:14px;margin-bottom:-6px;position:relative;z-index:2;
+  transform:rotate(-.7deg);cursor:pointer;
+  clip-path:polygon(0 8%,4% 0,97% 4%,100% 0,100% 92%,96% 100%,3% 96%,0 100%);
+  box-shadow:0 2px 5px rgba(0,0,0,.28);
+}
+.tape.active{background:var(--hi);color:var(--ink)}
+
+.paper{
+  position:relative;width:100%;aspect-ratio:816/1056;background:var(--paper);
+  border:1px solid var(--edge);box-shadow:2px 3px 0 rgba(0,0,0,.16),0 8px 18px rgba(0,0,0,.13);
+  overflow:hidden;
+}
+.paper.over{outline:3px solid var(--hi);outline-offset:-3px}
+.scaler{position:absolute;top:0;left:0;transform-origin:top left}
+
+.meter{margin-top:9px;display:flex;align-items:baseline;gap:8px}
+.meter .big{
+  font-family:var(--disp);font-weight:700;font-size:26px;letter-spacing:.02em;
+  font-variant-numeric:tabular-nums;line-height:1;
+}
+.meter .sub{font-family:var(--disp);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft)}
+.meter .flag{
+  margin-left:auto;font-family:var(--disp);font-size:11px;letter-spacing:.09em;text-transform:uppercase;
+  padding:3px 7px;border:1.5px solid;
+}
+.flag.under{color:var(--ink-soft);border-color:var(--edge)}
+.flag.ontime{color:var(--green);border-color:var(--green)}
+.flag.over{color:var(--red);border-color:var(--red)}
+.flag.wontfit{background:var(--red);color:#fff;border-color:var(--red)}
+.bar{height:5px;background:rgba(0,0,0,.13);margin-top:7px;position:relative;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--ink);transition:width .18s}
+.bar.over i{background:var(--red)}
+
+/* ---------- the page (screen mini + print) ---------- */
+.page{
+  width:816px;height:1056px;background:var(--paper);color:var(--ink);
+  padding:43px 46px;display:flex;flex-direction:column;
+}
+.page-head{flex:none;display:flex;justify-content:space-between;align-items:flex-end;
+  padding-bottom:8px;border-bottom:5px solid var(--ink);margin-bottom:4px}
+.ph-left{font-family:var(--disp);font-weight:700;font-size:44px;line-height:.98;letter-spacing:.03em;text-transform:uppercase}
+.ph-right{font-family:var(--disp);font-weight:500;font-size:15px;letter-spacing:.1em;text-transform:uppercase;
+  text-align:right;color:var(--ink-soft);line-height:1.45}
+.page-body{flex:1;overflow:hidden;position:relative;padding-top:6px}
+.rows{display:flex;flex-direction:column}
+.rows.fill{height:100%;justify-content:space-between}
+.song{display:grid;grid-template-columns:1.5em 1fr;column-gap:.35em;align-items:baseline}
+.song .num{
+  font-family:var(--disp);font-weight:500;font-size:.42em;color:#9a927c;
+  font-variant-numeric:tabular-nums;text-align:right;
+}
+.song .ttl{
+  font-family:var(--disp);font-weight:700;font-size:1em;line-height:1.06;
+  text-transform:uppercase;letter-spacing:.005em;
+}
+.song .ttl .dur{font-weight:400;font-size:.44em;color:#9a927c;margin-left:.5em;font-variant-numeric:tabular-nums;letter-spacing:.06em}
+.song .note{
+  grid-column:2;font-family:var(--ui);font-size:.30em;line-height:1.3;color:#6f6952;
+  margin-top:.16em;font-style:italic;
+}
+.song.dup .num{color:var(--red);font-weight:700}
+.page-empty{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;
+  font-family:var(--disp);font-size:26px;letter-spacing:.14em;text-transform:uppercase;color:#c9c2ab;padding:0 40px;
+}
+
+/* on-screen row affordances */
+.paper .song{cursor:grab;position:relative}
+.paper .song:hover{background:rgba(255,233,77,.35)}
+.paper .song.dragging{opacity:.25}
+.song .kill{
+  position:absolute;top:0;right:0;z-index:4;display:none;
+  font-family:var(--disp);font-weight:700;font-size:.5em;line-height:1;
+  padding:.15em .4em;border:0;background:var(--red);color:#fff;cursor:pointer;
+}
+.paper .song:hover .kill{display:block}
+.song .kill:hover{background:#8f2a1b}
+#printRoot .song .kill{display:none !important}
+.dropline{position:absolute;left:0;right:0;height:4px;background:var(--red);pointer-events:none;z-index:5}
+
+/* ---------- dialogs ---------- */
+.sheet{position:fixed;inset:0;background:rgba(22,21,15,.6);display:none;align-items:center;justify-content:center;z-index:50}
+.sheet.open{display:flex}
+.card{background:var(--manila-lt);border:2px solid var(--ink);box-shadow:8px 8px 0 rgba(0,0,0,.3);
+  width:min(580px,92vw);max-height:82vh;display:flex;flex-direction:column}
+.card h2{font-family:var(--disp);font-size:15px;letter-spacing:.2em;text-transform:uppercase;margin:0;
+  padding:12px 16px;background:var(--ink);color:var(--hi)}
+.card .body{padding:14px 16px;overflow:auto}
+.card .foot{padding:12px 16px;display:flex;gap:8px;justify-content:flex-end;border-top:1px solid var(--edge)}
+.card textarea{width:100%;height:200px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;
+  border:1px solid var(--edge);padding:8px;background:var(--paper);border-radius:0;resize:vertical}
+.card textarea:focus{outline:2px solid var(--hi);outline-offset:-1px}
+.saved-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--edge)}
+.saved-row .nm{font-family:var(--disp);font-weight:600;font-size:15px;flex:1}
+.saved-row .dt{font-size:11px;color:var(--ink-soft)}
+.hint{font-size:12.5px;line-height:1.65;color:var(--ink-soft)}
+.hint code{background:rgba(0,0,0,.07);padding:1px 4px;font-size:12px}
+.hint ol{margin:8px 0 0;padding-left:20px}
+.hint li{margin-bottom:6px}
+
+.toast{
+  position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+  background:var(--ink);color:var(--hi);font-family:var(--disp);font-size:13px;letter-spacing:.1em;
+  text-transform:uppercase;padding:11px 20px;z-index:80;opacity:0;pointer-events:none;transition:opacity .2s;
+}
+.toast.show{opacity:1}
+
+
+/* ---------- drag ghost + touch behaviour ---------- */
+.drag-ghost{
+  position:fixed;z-index:90;pointer-events:none;
+  transform:translate(-50%,-140%) rotate(-1.5deg);
+  background:var(--hi);color:var(--ink);border:2px solid var(--ink);
+  font-family:var(--disp);font-weight:700;font-size:15px;letter-spacing:.03em;
+  text-transform:uppercase;padding:8px 14px;max-width:62vw;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  box-shadow:3px 4px 0 rgba(0,0,0,.35);
+}
+body.dragging-now,body.dragging-now *{cursor:grabbing !important}
+.song-card,.paper .song{
+  touch-action:manipulation;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
+}
+#btnSongs{display:none}
+
+/* ---------- small screens ---------- */
+@media (max-width:900px){
+  .topbar{height:auto;padding:9px 12px;flex-wrap:wrap;gap:10px}
+  .brand{font-size:17px}
+  .bandtag{border-left:0;padding-left:0;font-size:11px}
+  .gigmeta{width:100%;margin-left:0;gap:7px}
+  .topbar input{flex:1;min-width:0;font-size:14px}
+  .toolbar{padding:8px 12px;gap:10px}
+  #sourceFld{width:100%}
+  #btnSongs{display:inline-block}
+  .library{
+    position:fixed;left:0;right:0;bottom:0;width:100%;height:64vh;z-index:45;
+    border-right:0;border-top:2px solid var(--ink);
+    transform:translateY(101%);transition:transform .22s ease;
+    box-shadow:0 -10px 28px rgba(0,0,0,.32);
+  }
+  .library.open{transform:translateY(0)}
+  .sets{padding:14px 12px 22px;gap:14px;scroll-snap-type:x mandatory}
+  .setcol{flex:0 0 86vw;scroll-snap-align:center}
+  .meter .big{font-size:23px}
+  .card{width:96vw}
+}
+@media (max-width:900px) and (prefers-reduced-motion:reduce){
+  .library{transition:none}
+}
+
+#printRoot{display:none}
+
+@media print{
+  @page{size:8.5in 11in;margin:0}
+  html,body{height:auto;overflow:visible;background:#fff}
+  body>*{display:none !important}
+  #printRoot{display:block !important}
+  #printRoot .page{
+    box-shadow:none;border:0;page-break-after:always;break-after:page;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact;
+  }
+  #printRoot .page:last-child{page-break-after:auto;break-after:auto}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none !important}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">Set<span>·</span>List</div>
+  <div class="bandtag" id="bandTag" style="display:none"></div>
+  <div class="gigmeta">
+    <button id="btnSongs">Songs</button>
+    <input id="gigName" type="text" placeholder="Band / venue" size="22">
+    <input id="gigDate" type="text" placeholder="Date" size="12">
+    <button class="primary" id="btnPrint">Print / PDF</button>
+  </div>
+</div>
+
+<div class="toolbar">
+  <div class="fld" id="sourceFld">
+    <label for="sheetUrl" class="src-ui">Google Sheet</label>
+    <input id="sheetUrl" type="text" class="src-ui" placeholder="Paste your sheet link">
+    <label for="tabName" class="src-ui">Tab</label>
+    <input id="tabName" type="text" class="src-ui" placeholder="Master" style="width:110px">
+    <button id="btnLoad">Load</button>
+    <button class="ghost src-ui" id="btnPaste">Paste CSV</button>
+  </div>
+  <div class="sep"></div>
+  <div class="fld"><label for="numSets">Sets</label><input id="numSets" type="number" min="1" max="8" value="3"></div>
+  <div class="fld"><label for="target">Target min</label><input id="target" type="number" min="5" max="180" value="45"></div>
+  <div class="fld"><label for="gap">Gap sec</label><input id="gap" type="number" min="0" max="180" value="25"></div>
+  <div class="sep"></div>
+  <label class="chk"><input type="checkbox" id="optNotes" checked><span class="fld"><label>Notes</label></span></label>
+  <label class="chk"><input type="checkbox" id="optTimes"><span class="fld"><label>Times</label></span></label>
+  <div class="sep"></div>
+  <button class="ghost" id="btnSave">Save</button>
+  <button class="ghost" id="btnOpen">Open</button>
+  <button class="ghost" id="btnClear">Clear sets</button>
+  <button class="ghost" id="btnWipe">Clear songs</button>
+</div>
+
+<div class="main">
+  <aside class="library">
+    <div class="libhead">
+      <div class="libtitle"><span>Library</span><em id="libCount">0 songs</em></div>
+      <input id="search" type="text" placeholder="Search title, artist, notes">
+      <select id="bandFilter" style="display:none"></select>
+      <div class="libtip">Drag onto a page to place exactly, or click to add to <b id="activeName">Set 1</b>.</div>
+      <button id="btnPurge" style="display:none;width:100%;margin-top:7px;border-color:var(--red);color:var(--red)">Remove songs not in sheet</button>
+    </div>
+    <div class="liblist" id="liblist"></div>
+  </aside>
+  <section class="sets" id="sets"></section>
+</div>
+
+<div id="printRoot"></div>
+
+<div class="sheet" id="dlgPaste">
+  <div class="card">
+    <h2>Paste CSV</h2>
+    <div class="body">
+      <p class="hint" style="margin-top:0">In Sheets: <code>File → Download → CSV</code>, open it in Notepad, paste here. Headers needed: <strong>Title</strong>, <strong>Length</strong>, <strong>Notes</strong>. Optional: <strong>Artist</strong>, <strong>Band</strong>.</p>
+      <textarea id="csvText" placeholder="Title,Length,Notes&#10;Song name,4:12,Any note for this one"></textarea>
+    </div>
+    <div class="foot">
+      <button class="ghost" data-close>Cancel</button>
+      <button class="primary" id="btnPasteGo">Load songs</button>
+    </div>
+  </div>
+</div>
+
+<div class="sheet" id="dlgOpen">
+  <div class="card">
+    <h2>Saved setlists</h2>
+    <div class="body">
+      <div style="margin-bottom:12px">
+        <div class="fld" id="apiFld" style="margin-bottom:5px">
+          <label for="apiUrl" style="flex:none">Web app URL</label>
+          <input id="apiUrl" type="text" style="flex:1" placeholder="https://script.google.com/macros/s/…/exec">
+          <button class="ghost" id="btnPing">Test</button>
+        </div>
+        <div class="hint" id="storeNote"></div>
+      </div>
+      <div id="savedList"></div>
+    </div>
+    <div class="foot">
+      <button class="ghost" id="btnExport">Export file</button>
+      <button class="ghost" id="btnImport">Import file</button>
+      <button data-close>Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="sheet" id="dlgHelp">
+  <div class="card">
+    <h2>Connect your song list</h2>
+    <div class="body">
+      <div class="hint">
+        <ol>
+          <li>Row 1 holds headers. Required: <code>Title</code>, <code>Length</code>, <code>Notes</code>. Optional: <code>Artist</code>, <code>Band</code>.</li>
+          <li>Length accepts <code>4:12</code>, <code>4</code> (minutes), <code>252</code> (seconds), or a real Sheets duration cell.</li>
+          <li>In Sheets: <code>Share → General access → Anyone with the link → Viewer</code>. Without this the load fails.</li>
+          <li>Paste the sheet address up top, and put the tab name in the <code>Tab</code> box (e.g. <code>Master</code>). Leave it blank and it reads the leftmost tab.</li>
+        </ol>
+        <p style="margin-bottom:0">A <code>Band</code> column turns on a band filter, so all your projects can share one sheet. <strong>Paste CSV</strong> is always there as a manual fallback.</p>
+      </div>
+    </div>
+    <div class="foot">
+      <button class="primary" data-close>Got it</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+
+/* ==================== CONFIG ====================
+   Fill this in to lock the file to one band, then save a copy per band.
+   Anything left blank keeps its on-screen control.
+
+   BAND also namespaces saved work, which matters: browsers share one
+   storage bucket across every file:// page, so two band files with the
+   same BAND (or both blank) would overwrite each other. */
+const CONFIG = {
+  BAND:       "The Moonlighters",
+  SHEET_URL:  "https://docs.google.com/spreadsheets/d/1bAPs6-1GJS3-1ce8xaER24zMGuggIuJUxosoRmp5sxM/edit",
+  TAB:        "Master",
+  API:        "https://script.google.com/macros/s/AKfycbz7Zlo_piMjn4hKQu1o2gRcRBSVfUvzDh2UHp5te0WRxC4b9XniFOaZWirSmLSXPc32/exec?token=rFRPN1FIBcTV3loeWt5c_kYP",
+  SETS:       3,
+  TARGET_MIN: 45,
+  GAP_SEC:    25
+};
+const NS = (CONFIG.BAND||"default").toLowerCase().replace(/[^a-z0-9]+/g,"_");
+const K_CUR = "setlist_current__"+NS;
+const K_SAVED = "setlist_saved__"+NS;
+
+/* ============ storage shim ============ */
+const _mem = {};
+const store = {
+  async get(k){
+    if (window.storage) { try { const r = await window.storage.get(k); return r ? r.value : null; } catch(e){ return null; } }
+    try { return localStorage.getItem(k); } catch(e){ return k in _mem ? _mem[k] : null; }
+  },
+  async set(k,v){
+    if (window.storage) { try { await window.storage.set(k,v); return; } catch(e){} }
+    try { localStorage.setItem(k,v); } catch(e){ _mem[k]=v; }
+  }
+};
+
+/* ============ state ============ */
+let library = [];
+let sets = [[],[],[]];
+let cfg = { numSets:3, target:45, gap:25, notes:true, times:false, gig:"", date:"", url:"", tab:"", band:"", active:0, api:"", slId:"", slName:"" };
+
+const $ = s => document.querySelector(s);
+const el = (t,c,txt) => { const e=document.createElement(t); if(c) e.className=c; if(txt!=null) e.textContent=txt; return e; };
+
+function toast(msg){
+  const t=$("#toast"); t.textContent=msg; t.classList.add("show");
+  clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove("show"),2600);
+}
+
+/* ============ time ============ */
+function parseLen(raw){
+  if(raw==null) return 0;
+  let s=String(raw).trim().toLowerCase();
+  if(!s) return 0;
+  let m=s.match(/^(\d+)\s*m(?:in)?\s*(\d+)?\s*s?/);
+  if(m) return (+m[1])*60 + (+(m[2]||0));
+  if(s.includes(":")){
+    const p=s.split(":").map(x=>parseFloat(x)||0);
+    if(p.length===3) return Math.round(p[0]*3600+p[1]*60+p[2]);
+    return Math.round(p[0]*60+p[1]);
+  }
+  const n=parseFloat(s);
+  if(isNaN(n)) return 0;
+  if(n>0 && n<1) return Math.round(n*86400);   // Sheets duration = fraction of a day
+  return n<=20 ? Math.round(n*60) : Math.round(n);
+}
+function mmss(sec){
+  sec=Math.max(0,Math.round(sec));
+  const h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60), s=sec%60;
+  const p=n=>String(n).padStart(2,"0");
+  return h ? `${h}:${p(m)}:${p(s)}` : `${m}:${p(s)}`;
+}
+
+/* ============ CSV ============ */
+function parseCSV(text){
+  text = text.replace(/^\uFEFF/,"").replace(/\r\n?/g,"\n");
+  const rows=[]; let row=[], f="", q=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){
+      if(c==='"'){ if(text[i+1]==='"'){ f+='"'; i++; } else q=false; }
+      else f+=c;
+    } else {
+      if(c==='"') q=true;
+      else if(c===","){ row.push(f); f=""; }
+      else if(c==="\n"){ row.push(f); rows.push(row); row=[]; f=""; }
+      else f+=c;
+    }
+  }
+  row.push(f); rows.push(row);
+  return rows.filter(r=>r.some(v=>String(v).trim()!==""));
+}
+
+const HEAD = {
+  title:["title","song","song title","name","track"],
+  artist:["artist","band original","original artist","by","performer"],
+  length:["length","time","duration","run time","runtime","len"],
+  notes:["notes","note","comment","comments","cue","cues","remarks"],
+  band:["band","group","project","act"]
+};
+function colIndex(headers, keys){
+  const norm=headers.map(h=>String(h).trim().toLowerCase());
+  for(const k of keys){ const i=norm.indexOf(k); if(i>=0) return i; }
+  for(let i=0;i<norm.length;i++) for(const k of keys) if(norm[i]&&norm[i].includes(k)) return i;
+  return -1;
+}
+function slugId(title, taken){
+  let base="t_"+String(title).trim().toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,"").slice(0,40);
+  if(base==="t_") base="t_untitled";
+  let id=base, n=2;
+  while(taken.has(id)) id=base+"__"+(n++);
+  taken.add(id);
+  return id;
+}
+function ingestRows(rows){
+  if(!rows || rows.length<2){ toast("No rows found"); return false; }
+  const head=rows[0];
+  const iT=colIndex(head,HEAD.title), iL=colIndex(head,HEAD.length),
+        iN=colIndex(head,HEAD.notes), iA=colIndex(head,HEAD.artist), iB=colIndex(head,HEAD.band);
+  if(iT<0){ toast("No Title column found in row 1"); return false; }
+
+  const prev=library, taken=new Set();
+  const next=rows.slice(1).map(r=>{
+    const title=String(r[iT]||"").trim();
+    if(!title) return null;
+    return {
+      id:slugId(title,taken),
+      title,
+      artist:iA>=0?String(r[iA]||"").trim():"",
+      notes:iN>=0?String(r[iN]||"").trim():"",
+      seconds:iL>=0?parseLen(r[iL]):0,
+      band:iB>=0?String(r[iB]||"").trim():"",
+      ghost:false
+    };
+  }).filter(Boolean);
+  if(!next.length){ toast("No songs found under the Title column"); return false; }
+
+  library=next;
+  remapSets(prev);
+  buildBandFilter(iB>=0);
+  renderSets();
+  const orphans=library.filter(s=>s.ghost).length;
+  toast(orphans
+    ? next.length+" from sheet · "+orphans+" kept from setlists"
+    : next.length+" songs loaded");
+  return true;
+}
+
+/* Keep already-placed songs pointing at the right rows after a reload.
+   Only visible sets count — hidden slots above the current set count are
+   dropped, so they cannot quietly keep old songs alive in the library. */
+function remapSets(prev){
+  sets=sets.slice(0,cfg.numSets);
+  const byId=new Set(library.map(s=>s.id));
+  const byTitle=new Map(library.map(s=>[s.title.trim().toLowerCase(),s.id]));
+  const prevById=new Map((prev||[]).map(s=>[s.id,s]));
+  sets=sets.map(a=>(a||[]).map(id=>{
+    if(byId.has(id)) return id;
+    const old=prevById.get(id);
+    if(!old) return null;
+    const hit=byTitle.get(old.title.trim().toLowerCase());
+    if(hit) return hit;
+    library.push(Object.assign({},old,{ghost:true}));
+    byId.add(old.id);
+    return old.id;
+  }).filter(Boolean));
+}
+function ingest(text){ return ingestRows(parseCSV(text)); }
+
+/* ============ Google Sheet loading ============
+   Primary path is JSONP via the gviz endpoint. A <script> tag is not subject to
+   CORS, so this works when the page is opened straight off a local drive. */
+function sheetIds(u){
+  u=(u||"").trim();
+  const id=u.match(/\/spreadsheets\/d\/(?:e\/)?([a-zA-Z0-9-_]{20,})/);
+  const gid=(u.match(/[#&?]gid=(\d+)/)||[])[1] || "0";
+  return id ? {id:id[1], gid, pub:u.includes("/spreadsheets/d/e/")} : null;
+}
+function gvizCell(c){
+  if(!c) return "";
+  if(c.f!=null && c.f!=="") return String(c.f);
+  const v=c.v;
+  if(v==null) return "";
+  if(Array.isArray(v)){
+    const p=n=>String(n||0).padStart(2,"0");
+    return `${v[0]||0}:${p(v[1])}:${p(v[2])}`;
+  }
+  if(typeof v==="string"){
+    const d=v.match(/^Date\((.*)\)$/);
+    if(d){ const n=d[1].split(",").map(Number);
+      const p=x=>String(x||0).padStart(2,"0");
+      return `${n[3]||0}:${p(n[4])}:${p(n[5])}`; }
+  }
+  return String(v);
+}
+function loadJSONP(id,gid,tab){
+  return new Promise((resolve,reject)=>{
+    const cb="__gviz"+Math.random().toString(36).slice(2,9);
+    let settled=false;
+    const s=document.createElement("script");
+    const to=setTimeout(()=>fail("timed out"),15000);
+    function done(){ clearTimeout(to); s.remove(); try{ delete window[cb]; }catch(e){ window[cb]=undefined; } }
+    function fail(msg){ if(settled) return; settled=true; done(); reject(new Error(msg)); }
+    window[cb]=resp=>{
+      if(settled) return; settled=true; done();
+      if(resp && resp.status==="error"){
+        const e=(resp.errors&&resp.errors[0])||{};
+        return reject(new Error(e.detailed_message||e.message||"sheet returned an error"));
+      }
+      if(!resp || !resp.table) return reject(new Error("no data came back"));
+      resolve(resp.table);
+    };
+    s.onerror=()=>fail("blocked or not shared");
+    /* a named tab beats gid, which silently falls back to the leftmost sheet */
+    const target = tab ? "&sheet="+encodeURIComponent(tab) : "&gid="+gid;
+    s.src="https://docs.google.com/spreadsheets/d/"+id+
+          "/gviz/tq?tqx=out:json;responseHandler:"+cb+"&headers=1"+target;
+    document.head.appendChild(s);
+  });
+}
+function tableToRows(t){
+  const head=t.cols.map(c=>(c.label&&c.label.trim())?c.label:(c.id||""));
+  const rows=t.rows.map(r=>(r.c||[]).map(gvizCell));
+  // if Sheets didn't promote row 1 to headers, do it ourselves
+  if(!head.some(h=>h && !/^[A-Z]{1,2}$/.test(h)) && rows.length) return rows;
+  return [head, ...rows];
+}
+async function loadSheet(){
+  const raw=$("#sheetUrl").value.trim();
+  const tab=$("#tabName").value.trim();
+  if(!raw){ toast("Paste your sheet link first"); return; }
+  const ids=sheetIds(raw);
+  toast(tab?("Loading tab \u201c"+tab+"\u201d\u2026"):"Loading\u2026");
+  let why="";
+  if(ids && !ids.pub){
+    try{
+      const table=await loadJSONP(ids.id, ids.gid, tab);
+      if(ingestRows(tableToRows(table))){ cfg.url=raw; cfg.tab=tab; persist(); return; }
+      return;
+    }catch(e){ why=e.message||""; }
+  }
+  try{
+    const url = ids && ids.pub
+      ? raw.split("?")[0].replace(/\/(edit|pubhtml|view)?$/,"")+"?output=csv&single=true"+(tab?"":"&gid="+ids.gid)
+      : "https://docs.google.com/spreadsheets/d/"+(ids?ids.id:"")+"/gviz/tq?tqx=out:csv&headers=1"+
+        (tab?"&sheet="+encodeURIComponent(tab):"&gid="+(ids?ids.gid:"0"));
+    const res=await fetch(url);
+    if(!res.ok) throw new Error(res.status);
+    const txt=await res.text();
+    if(/^\s*</.test(txt)) throw new Error("html");
+    if(ingest(txt)){ cfg.url=raw; cfg.tab=tab; persist(); return; }
+    return;
+  }catch(e){}
+  if(tab && /invalid|not found|unknown|sheet/i.test(why)){
+    toast("No tab named \u201c"+tab+"\u201d \u2014 check the spelling");
+  } else {
+    toast(why ? "Couldn't load \u2014 "+why : "Couldn't reach the sheet \u2014 check sharing");
+    $("#dlgHelp").classList.add("open");
+  }
+}
+
+function buildBandFilter(has){
+  const sel=$("#bandFilter");
+  if(!has){ sel.style.display="none"; cfg.band=""; return; }
+  const bands=[...new Set(library.map(s=>s.band).filter(Boolean))].sort();
+  if(!bands.length){ sel.style.display="none"; return; }
+  sel.innerHTML="";
+  sel.appendChild(new Option("All bands",""));
+  bands.forEach(b=>sel.appendChild(new Option(b,b)));
+  sel.value = bands.includes(cfg.band)?cfg.band:"";
+  sel.style.display="block";
+}
+
+/* ============ library ============ */
+function songById(id){ return library.find(s=>s.id===id); }
+function usedIds(){
+  const m=new Map();
+  sets.slice(0,cfg.numSets).forEach(a=>a.forEach(id=>m.set(id,(m.get(id)||0)+1)));
+  return m;
+}
+/* first set a song appears in, so the library can say where it already is */
+function usedWhere(){
+  const m=new Map();
+  sets.slice(0,cfg.numSets).forEach((a,i)=>a.forEach(id=>{ if(!m.has(id)) m.set(id,i); }));
+  return m;
+}
+
+function renderLibrary(){
+  const q=$("#search").value.trim().toLowerCase();
+  const band=$("#bandFilter").value||"";
+  const used=usedIds();
+  const where=usedWhere();
+  const list=$("#liblist");
+  list.innerHTML="";
+  $("#activeName").textContent="Set "+(cfg.active+1);
+  const items=library.filter(s=>{
+    if(band && s.band!==band) return false;
+    if(!q) return true;
+    return (s.title+" "+s.artist+" "+s.notes).toLowerCase().includes(q);
+  });
+  const ghosts=library.filter(s=>s.ghost).length;
+  const pb=$("#btnPurge");
+  pb.style.display = ghosts ? "block" : "none";
+  pb.textContent = "Remove "+ghosts+" song"+(ghosts>1?"s":"")+" not in sheet";
+  $("#libCount").textContent = ghosts
+    ? (items.length-items.filter(s=>s.ghost).length)+" + "+items.filter(s=>s.ghost).length+" stray"
+    : items.length + (items.length===1?" song":" songs");
+  if(!library.length){
+    const e=el("div","emptylib");
+    e.innerHTML='No songs yet.<br><br>Paste your Google Sheet link above and press Load — or <a href="#" id="lnkHelp" style="color:#16150F">see how to set it up</a>.';
+    list.appendChild(e);
+    e.querySelector("#lnkHelp").onclick=ev=>{ev.preventDefault();$("#dlgHelp").classList.add("open");};
+    return;
+  }
+  items.forEach(s=>{
+    const inSet=where.has(s.id) ? where.get(s.id)+1 : 0;
+    const c=el("div","song-card"+(inSet?" used":"")+(s.ghost?" ghost":""));
+    c.dataset.id=s.id;
+    c.title=inSet ? "Already in Set "+inSet
+          : s.ghost ? "Came from a saved setlist, not your sheet"
+          : "Click to add to Set "+(cfg.active+1);
+    const r=el("div","sc-row");
+    r.appendChild(el("div","sc-title",s.title));
+    r.appendChild(el("div","sc-time",mmss(s.seconds)));
+    c.appendChild(r);
+    if(s.artist) c.appendChild(el("div","sc-sub",s.artist));
+    if(s.notes) c.appendChild(el("div","sc-note",s.notes));
+    if(inSet) c.appendChild(el("div","tag in","In set "+inSet));
+    if(s.ghost) c.appendChild(el("div","tag","Not in sheet"));
+    c.addEventListener("click",()=>{
+      if(DRAG.justDragged) return;
+      if(inSet){ toast("\u201c"+s.title+"\u201d is already in Set "+inSet); return; }
+      sets[cfg.active].push(s.id);
+      renderSets();
+    });
+    list.appendChild(c);
+  });
+}
+
+/* ============ set math ============ */
+function setSeconds(i){
+  const songs=(sets[i]||[]).map(songById).filter(Boolean);
+  return songs.reduce((a,s)=>a+s.seconds,0) + cfg.gap*songs.length;
+}
+
+/* ============ page ============ */
+function buildPage(i){
+  const page=el("div","page");
+  const head=el("div","page-head");
+  head.appendChild(el("div","ph-left","Set "+(i+1)));
+  const right=el("div","ph-right");
+  right.appendChild(el("div",null,cfg.gig||"\u00a0"));
+  const meta=[cfg.date, (sets[i]||[]).length?sets[i].length+" songs · "+mmss(setSeconds(i)):""].filter(Boolean).join("  ·  ");
+  right.appendChild(el("div",null,meta||"\u00a0"));
+  head.appendChild(right);
+  page.appendChild(head);
+
+  const body=el("div","page-body");
+  const rows=el("div","rows");
+  const dupes=usedIds();
+  (sets[i]||[]).forEach((id,n)=>{
+    const s=songById(id); if(!s) return;
+    const row=el("div","song"+(dupes.get(id)>1?" dup":""));
+    row.dataset.idx=n; row.dataset.set=i;
+    row.appendChild(el("span","num",String(n+1)));
+    const t=el("span","ttl",s.title);
+    if(cfg.times) t.appendChild(el("span","dur",mmss(s.seconds)));
+    row.appendChild(t);
+    if(cfg.notes && s.notes) row.appendChild(el("div","note",s.notes));
+    const kill=el("button","kill","\u00d7");
+    kill.draggable=false;
+    kill.title="Remove from this set";
+    kill.onclick=ev=>{ ev.preventDefault(); ev.stopPropagation(); sets[i].splice(n,1); renderSets(); };
+    row.appendChild(kill);
+    rows.appendChild(row);
+  });
+  body.appendChild(rows);
+  if(!(sets[i]||[]).length) body.appendChild(el("div","page-empty","Drag songs here"));
+  page.appendChild(body);
+  return page;
+}
+
+function fitPage(page){
+  const body=page.querySelector(".page-body");
+  const rows=page.querySelector(".rows");
+  if(!rows || !rows.children.length) return true;
+  rows.classList.remove("fill");
+  rows.style.height="auto";
+  const avail=body.clientHeight;
+  let lo=9, hi=64, best=9, fits=false;
+  for(let k=0;k<16;k++){
+    const mid=(lo+hi)/2;
+    rows.style.fontSize=mid+"px";
+    if(rows.scrollHeight<=avail){ best=mid; lo=mid; fits=true; } else hi=mid;
+  }
+  rows.style.fontSize=(fits?best:9)+"px";
+  rows.style.height="";
+  rows.classList.add("fill");
+  return fits;
+}
+
+/* ============ sets ============ */
+function renderSets(){
+  const wrap=$("#sets");
+  wrap.innerHTML="";
+  if(cfg.active>=cfg.numSets) cfg.active=0;
+  for(let i=0;i<cfg.numSets;i++){
+    if(!sets[i]) sets[i]=[];
+    const col=el("div","setcol");
+
+    const tape=el("div","tape"+(i===cfg.active?" active":""),"Set "+(i+1));
+    tape.onclick=()=>{ cfg.active=i; renderSets(); };
+    col.appendChild(tape);
+
+    const paper=el("div","paper");
+    paper.dataset.set=i;
+    paper.onmousedown=()=>{ if(cfg.active!==i){ cfg.active=i; document.querySelectorAll(".tape").forEach((t,k)=>t.classList.toggle("active",k===i)); $("#activeName").textContent="Set "+(i+1); } };
+    const scaler=el("div","scaler");
+    const page=buildPage(i);
+    scaler.appendChild(page);
+    paper.appendChild(scaler);
+    col.appendChild(paper);
+
+    const secs=setSeconds(i), tgt=cfg.target*60;
+    const meter=el("div","meter");
+    meter.appendChild(el("div","big",mmss(secs)));
+    meter.appendChild(el("div","sub",sets[i].length+(sets[i].length===1?" song":" songs")));
+    const flag=el("div","flag");
+    meter.appendChild(flag);
+    col.appendChild(meter);
+
+    const bar=el("div","bar");
+    const fill=el("i");
+    fill.style.width=Math.min(100,(secs/tgt)*100)+"%";
+    bar.appendChild(fill);
+    if(secs>tgt) bar.classList.add("over");
+    col.appendChild(bar);
+
+    wrap.appendChild(col);
+
+    requestAnimationFrame(()=>{
+      const w=paper.clientWidth;
+      scaler.style.transform="scale("+(w/816)+")";
+      const fits=fitPage(page);
+      const diff=secs-tgt;
+      if(!sets[i].length){ flag.className="flag under"; flag.textContent="empty"; }
+      else if(!fits){ flag.className="flag wontfit"; flag.textContent="won't fit"; }
+      else if(Math.abs(diff)<=90){ flag.className="flag ontime"; flag.textContent="on target"; }
+      else if(diff>0){ flag.className="flag over"; flag.textContent="+"+mmss(diff)+" over"; }
+      else { flag.className="flag under"; flag.textContent=mmss(-diff)+" short"; }
+    });
+
+  }
+  renderLibrary();
+  persist();
+}
+
+/* ============ drag: pointer events ============
+   One code path for mouse, touch and pen. HTML5 drag-and-drop fires nothing on
+   touch, which is why this had to be rewritten to make phones and tablets work.
+   Mouse drags start after a few px of movement; touch drags start on a short
+   hold, so a normal swipe still scrolls the list. */
+const DRAG={active:false,pending:null,ghost:null,sx:0,sy:0,touch:false,
+            justDragged:false,timer:null,line:null,target:null,index:0};
+const THRESH=8, HOLD=300;
+
+function clearLine(){ if(DRAG.line){ DRAG.line.remove(); DRAG.line=null; } }
+
+function dragTitle(src){
+  const id = src.from==="lib" ? src.id : (sets[src.set]||[])[src.idx];
+  const s=songById(id);
+  return s ? s.title : "";
+}
+function beginDrag(x,y){
+  const src=DRAG.pending;
+  if(!src || DRAG.active) return;
+  DRAG.active=true;
+  DRAG.ghost=el("div","drag-ghost",dragTitle(src));
+  document.body.appendChild(DRAG.ghost);
+  moveGhost(x,y);
+  if(src.el) src.el.classList.add("dragging");
+  document.body.classList.add("dragging-now");
+  if(DRAG.touch && navigator.vibrate) navigator.vibrate(12);
+  updateTarget(x,y);
+}
+function moveGhost(x,y){
+  if(!DRAG.ghost) return;
+  DRAG.ghost.style.left=x+"px";
+  DRAG.ghost.style.top=y+"px";
+}
+function updateTarget(x,y){
+  if(DRAG.ghost) DRAG.ghost.style.visibility="hidden";
+  const under=document.elementFromPoint(x,y);
+  if(DRAG.ghost) DRAG.ghost.style.visibility="";
+  const paper=(under && under.closest) ? under.closest(".paper") : null;
+  document.querySelectorAll(".paper.over").forEach(p=>{ if(p!==paper) p.classList.remove("over"); });
+  clearLine();
+  if(!paper){ DRAG.target=null; return; }
+  paper.classList.add("over");
+  DRAG.target=+paper.dataset.set;
+  const rows=[...paper.querySelectorAll(".song")];
+  let idx=rows.length;
+  for(let i=0;i<rows.length;i++){
+    const r=rows[i].getBoundingClientRect();
+    if(y < r.top + r.height/2){ idx=i; break; }
+  }
+  DRAG.index=idx;
+  const pr=paper.getBoundingClientRect();
+  let ty;
+  if(!rows.length) ty=pr.height/2;
+  else if(idx>=rows.length){ const r=rows[rows.length-1].getBoundingClientRect(); ty=r.bottom-pr.top; }
+  else { const r=rows[idx].getBoundingClientRect(); ty=r.top-pr.top; }
+  DRAG.line=el("div","dropline");
+  DRAG.line.style.top=Math.max(0,Math.min(pr.height-4,ty-2))+"px";
+  paper.appendChild(DRAG.line);
+}
+/* nudge the set area when the pointer sits near an edge, so you can reach
+   sets that are off screen without letting go */
+function autoScroll(x,y){
+  const w=$("#sets"), r=w.getBoundingClientRect(), edge=64;
+  if(x>r.right-edge) w.scrollLeft+=16;
+  else if(x<r.left+edge) w.scrollLeft-=16;
+  if(y>r.bottom-edge) w.scrollTop+=14;
+  else if(y<r.top+edge) w.scrollTop-=14;
+}
+function endDrag(commit){
+  clearTimeout(DRAG.timer);
+  document.querySelectorAll(".dragging").forEach(n=>n.classList.remove("dragging"));
+  document.querySelectorAll(".paper.over").forEach(p=>p.classList.remove("over"));
+  clearLine();
+  if(DRAG.ghost){ DRAG.ghost.remove(); DRAG.ghost=null; }
+  document.body.classList.remove("dragging-now");
+  const src=DRAG.pending, t=DRAG.target;
+  let i=DRAG.index;
+  const was=DRAG.active;
+  DRAG.active=false; DRAG.pending=null; DRAG.target=null;
+  if(!commit || !was || !src || t==null) return;
+  if(src.from==="lib"){
+    const where=usedWhere();
+    if(where.has(src.id)){
+      toast("\u201c"+dragTitle(src)+"\u201d is already in Set "+(where.get(src.id)+1));
+      return;
+    }
+    sets[t].splice(i,0,src.id);
+  } else {
+    if(!sets[src.set] || sets[src.set][src.idx]==null) return;
+    const [moved]=sets[src.set].splice(src.idx,1);
+    if(src.set===t && src.idx<i) i--;
+    sets[t].splice(Math.max(0,i),0,moved);
+  }
+  cfg.active=t;
+  renderSets();
+}
+
+document.addEventListener("pointerdown",e=>{
+  if(e.pointerType==="mouse" && e.button!==0) return;
+  if(e.target.closest && e.target.closest(".kill")) return;
+  const card=e.target.closest && e.target.closest(".song-card");
+  const row=e.target.closest && e.target.closest(".paper .song");
+  let src=null;
+  if(card && !card.classList.contains("used")) src={from:"lib",id:card.dataset.id,el:card};
+  else if(row) src={from:"set",set:+row.dataset.set,idx:+row.dataset.idx,el:row};
+  if(!src) return;
+  DRAG.pending=src; DRAG.sx=e.clientX; DRAG.sy=e.clientY;
+  DRAG.touch=(e.pointerType!=="mouse");
+  DRAG.justDragged=false;
+  clearTimeout(DRAG.timer);
+  if(DRAG.touch) DRAG.timer=setTimeout(()=>beginDrag(DRAG.sx,DRAG.sy),HOLD);
+});
+document.addEventListener("pointermove",e=>{
+  if(!DRAG.pending) return;
+  const moved=Math.hypot(e.clientX-DRAG.sx, e.clientY-DRAG.sy);
+  if(!DRAG.active){
+    if(DRAG.touch){
+      /* moving before the hold completes means they are scrolling, not dragging */
+      if(moved>THRESH){ clearTimeout(DRAG.timer); DRAG.pending=null; }
+      return;
+    }
+    if(moved>THRESH) beginDrag(e.clientX,e.clientY); else return;
+  }
+  moveGhost(e.clientX,e.clientY);
+  updateTarget(e.clientX,e.clientY);
+  autoScroll(e.clientX,e.clientY);
+});
+document.addEventListener("pointerup",()=>{
+  clearTimeout(DRAG.timer);
+  if(DRAG.active){
+    DRAG.justDragged=true;
+    endDrag(true);
+    setTimeout(()=>{ DRAG.justDragged=false; },60);
+  } else DRAG.pending=null;
+});
+document.addEventListener("pointercancel",()=>{ if(DRAG.active) endDrag(false); DRAG.pending=null; });
+/* stop the page scrolling underneath an active drag on touch */
+document.addEventListener("touchmove",e=>{ if(DRAG.active) e.preventDefault(); },{passive:false});
+
+document.addEventListener("dblclick",e=>{
+  const row=e.target.closest && e.target.closest(".paper .song");
+  if(!row) return;
+  sets[+row.dataset.set].splice(+row.dataset.idx,1);
+  renderSets();
+});
+
+/* ============ print ============ */
+function doPrint(){
+  const root=$("#printRoot");
+  root.innerHTML="";
+  const pages=[];
+  for(let i=0;i<cfg.numSets;i++){
+    if(!sets[i] || !sets[i].length) continue;
+    const p=buildPage(i);
+    root.appendChild(p);
+    pages.push(p);
+  }
+  if(!pages.length){ toast("Nothing to print yet"); return; }
+  root.style.display="block";
+  pages.forEach(fitPage);
+  root.style.display="";
+  setTimeout(()=>window.print(),60);
+}
+
+/* ============ persistence ============ */
+const DATA_VERSION = 2;
+function snapshot(){ return {v:DATA_VERSION,cfg,sets,library}; }
+async function persist(){
+  cfg.gig=$("#gigName").value; cfg.date=$("#gigDate").value;
+  await store.set(K_CUR,JSON.stringify(snapshot()));
+}
+async function restore(){
+  try{
+    const raw=await store.get(K_CUR);
+    if(!raw) return false;
+    const d=JSON.parse(raw);
+    if(d.cfg) cfg={...cfg,...d.cfg};
+    if(d.v===DATA_VERSION){
+      if(d.library) library=d.library;
+      if(d.sets) sets=d.sets;
+    } else {
+      /* saved before the sample list was removed — keep settings, drop songs */
+      library=[]; sets=[[],[],[]]; cfg.slId="";
+    }
+    $("#numSets").value=cfg.numSets; $("#target").value=cfg.target; $("#gap").value=cfg.gap;
+    $("#optNotes").checked=cfg.notes; $("#optTimes").checked=cfg.times;
+    $("#gigName").value=cfg.gig||""; $("#gigDate").value=cfg.date||""; $("#sheetUrl").value=cfg.url||"";
+    $("#apiUrl").value=cfg.api||"";
+    $("#tabName").value=cfg.tab||"";
+    buildBandFilter(library.some(s=>s.band));
+    return library.length>0;
+  }catch(e){ return false; }
+}
+/* ---- Apps Script web app, called by script tag so there is no CORS ---- */
+function jsonp(base,params){
+  return new Promise((resolve,reject)=>{
+    const cb="__sl"+Math.random().toString(36).slice(2,9);
+    const s=document.createElement("script");
+    let settled=false;
+    const to=setTimeout(()=>fail("timed out"),25000);
+    function done(){ clearTimeout(to); s.remove(); try{ delete window[cb]; }catch(e){ window[cb]=undefined; } }
+    function fail(m){ if(settled) return; settled=true; done(); reject(new Error(m)); }
+    window[cb]=d=>{ if(settled) return; settled=true; done(); resolve(d); };
+    const qs=Object.keys(params).map(k=>k+"="+encodeURIComponent(params[k])).join("&");
+    s.src=base+(base.indexOf("?")>=0?"&":"?")+qs+"&callback="+cb+"&_="+Date.now();
+    if(s.src.length>7800){ fail("setlist too long for one request"); return; }
+    s.onerror=()=>fail("couldn't reach the web app");
+    document.head.appendChild(s);
+  });
+}
+async function api(action,params){
+  if(!cfg.api) throw new Error("No web app URL set");
+  const r=await jsonp(cfg.api,Object.assign({action},params||{}));
+  if(!r || !r.ok) throw new Error((r&&r.error)||"web app returned an error");
+  return r;
+}
+
+/* a song coming back from the sheet may not be in the library any more */
+function adoptSong(o){
+  const t=String(o.title||"").trim();
+  if(!t) return null;
+  const hit=library.find(s=>s.title.trim().toLowerCase()===t.toLowerCase());
+  if(hit) return hit.id;
+  const id="ghost_"+Math.random().toString(36).slice(2,9);
+  library.push({id,title:t,artist:"",notes:o.notes||"",seconds:parseLen(o.length),band:"",ghost:true});
+  return id;
+}
+function payloadFor(name){
+  const dropped=[];
+  const payload={
+    id: cfg.slId||"",
+    name: name,
+    venue: cfg.gig||"",
+    date: cfg.date||"",
+    sets: sets.slice(0,cfg.numSets).map(a=>a.map(id=>{
+      const s=songById(id);
+      if(!s){ dropped.push(id); return null; }
+      if(!String(s.title).trim()){ dropped.push(id+" (blank title)"); return null; }
+      return {title:s.title, length:mmss(s.seconds), notes:s.notes};
+    }).filter(Boolean))
+  };
+  const onScreen=sets.slice(0,cfg.numSets).reduce((n,a)=>n+a.length,0);
+  const sending=payload.sets.reduce((n,a)=>n+a.length,0);
+  return {payload, dropped, onScreen, sending};
+}
+function applySetlist(d){
+  sets=(d.sets||[]).map(a=>a.map(adoptSong).filter(Boolean));
+  cfg.numSets=Math.max(1,Math.min(8,sets.length||1));
+  cfg.slId=d.id||""; cfg.slName=d.name||"";
+  cfg.gig=d.venue||""; cfg.date=d.date||"";
+  $("#numSets").value=cfg.numSets;
+  $("#gigName").value=cfg.gig; $("#gigDate").value=cfg.date;
+  buildBandFilter(library.some(x=>x.band));
+  $("#dlgOpen").classList.remove("open");
+  renderSets();
+  const orphans=library.filter(s=>s.ghost).length;
+  toast(orphans
+    ? "Opened — "+orphans+" song"+(orphans>1?"s":"")+" not in your sheet"
+    : "Opened "+(d.name||"setlist"));
+}
+
+async function localAll(){
+  try{ return JSON.parse((await store.get(K_SAVED))||"[]"); }catch(e){ return []; }
+}
+/* Default name is the band and the gig date, which is how you would say it out
+   loud. Falls back to today if the date box is empty. */
+function defaultName(){
+  if(!$("#gigDate").value.trim()){
+    $("#gigDate").value=new Date().toLocaleDateString();
+    cfg.date=$("#gigDate").value;
+  }
+  const band=(CONFIG.BAND||cfg.band||$("#gigName").value).trim();
+  const date=$("#gigDate").value.trim();
+  return [band,date].filter(Boolean).join(" \u2014 ") || "Setlist";
+}
+async function saveNamed(){
+  const name=prompt("Name this setlist:", cfg.slName || defaultName());
+  if(!name) return;
+  cfg.slName=name;
+  if(!sets.slice(0,cfg.numSets).some(a=>a.length)){ toast("Add some songs first"); return; }
+  const built=payloadFor(name);
+  if(built.dropped.length){
+    alert("These songs could not be saved and were left out:\n\n  "+
+          built.dropped.join("\n  ")+
+          "\n\nThat is "+built.onScreen+" on screen but only "+built.sending+" saved. "+
+          "Reload songs and try again.");
+  }
+  if(cfg.api){
+    toast("Saving to sheet…");
+    try{
+      const r=await api("save",{data:JSON.stringify(built.payload)});
+      cfg.slId=r.id; persist();
+      if(r.rows!=null && r.rows!==built.onScreen){
+        alert("Saved, but the counts do not match.\n\n"+
+              "  On screen: "+built.onScreen+"\n"+
+              "  Sent:      "+built.sending+"\n"+
+              "  Written:   "+r.rows+"\n\n"+
+              (built.sending!==built.onScreen
+                ? "The loss happened before sending — see the list above."
+                : "Everything was sent, so the rows were lost in the sheet itself."));
+      } else {
+        toast("Saved to sheet — "+r.rows+" songs");
+      }
+    }catch(e){ toast("Save failed — "+e.message); }
+    return;
+  }
+  const all=await localAll();
+  all.unshift({name,when:new Date().toISOString(),data:snapshot()});
+  await store.set(K_SAVED,JSON.stringify(all.slice(0,40)));
+  toast("Saved in this browser");
+}
+async function renderSaved(){
+  const box=$("#savedList");
+  const note=$("#storeNote");
+  box.innerHTML="";
+  if(cfg.api){
+    note.innerHTML="Setlists save to the <b>Setlists</b> tab of your sheet — everyone with the link sees the same list.";
+    box.appendChild(el("p","hint","Loading…"));
+    let items=[];
+    try{ items=(await api("list")).items||[]; }
+    catch(e){ box.innerHTML=""; box.appendChild(el("p","hint","Couldn't reach the sheet — "+e.message)); return; }
+    box.innerHTML="";
+    if(!items.length){ box.appendChild(el("p","hint","No setlists in the sheet yet. Build one and press Save.")); return; }
+    items.forEach(it=>{
+      const r=el("div","saved-row");
+      const n=el("div","nm",it.name||it.id);
+      const per=it.perSet ? Object.keys(it.perSet).sort((a,b)=>a-b).map(k=>it.perSet[k]).join(" · ") : "";
+      const bits=[it.venue,it.date,it.songs+" songs"+(per?" ("+per+")":"")].filter(Boolean).join(" · ");
+      n.appendChild(el("div","dt",bits));
+      r.appendChild(n);
+      const b1=el("button",null,"Open");
+      b1.onclick=async()=>{
+        try{ applySetlist((await api("load",{id:it.id})).setlist); }
+        catch(e){ toast("Open failed — "+e.message); }
+      };
+      const b2=el("button","ghost","Delete");
+      b2.onclick=async()=>{
+        if(!confirm("Delete \""+(it.name||it.id)+"\" from the sheet?")) return;
+        try{ await api("delete",{id:it.id}); if(cfg.slId===it.id) cfg.slId=""; renderSaved(); toast("Deleted"); }
+        catch(e){ toast("Delete failed — "+e.message); }
+      };
+      r.appendChild(b1); r.appendChild(b2);
+      box.appendChild(r);
+    });
+    return;
+  }
+  note.innerHTML="No web app URL set, so setlists save only in <b>this browser</b>. Paste the URL above to store them in your sheet instead.";
+  const all=await localAll();
+  if(!all.length){ box.appendChild(el("p","hint","Nothing saved yet. Build a set, then press Save.")); return; }
+  all.forEach((s,i)=>{
+    const r=el("div","saved-row");
+    const n=el("div","nm",s.name);
+    n.appendChild(el("div","dt",new Date(s.when).toLocaleString()));
+    r.appendChild(n);
+    const b1=el("button",null,"Open");
+    b1.onclick=()=>{
+      library=s.data.library||library; sets=s.data.sets||[]; cfg={...cfg,...s.data.cfg};
+      $("#numSets").value=cfg.numSets; $("#target").value=cfg.target; $("#gap").value=cfg.gap;
+      $("#gigName").value=cfg.gig||""; $("#gigDate").value=cfg.date||"";
+      $("#optNotes").checked=cfg.notes; $("#optTimes").checked=cfg.times;
+      buildBandFilter(library.some(x=>x.band));
+      $("#dlgOpen").classList.remove("open"); renderSets(); toast("Opened");
+    };
+    const b2=el("button","ghost","Delete");
+    b2.onclick=async()=>{ all.splice(i,1); await store.set(K_SAVED,JSON.stringify(all)); renderSaved(); };
+    r.appendChild(b1); r.appendChild(b2);
+    box.appendChild(r);
+  });
+}
+
+/* ============ wiring ============ */
+$("#btnLoad").onclick=loadSheet;
+$("#sheetUrl").addEventListener("keydown",e=>{ if(e.key==="Enter") loadSheet(); });
+$("#tabName").addEventListener("keydown",e=>{ if(e.key==="Enter") loadSheet(); });
+$("#btnPaste").onclick=()=>$("#dlgPaste").classList.add("open");
+$("#btnPasteGo").onclick=()=>{ if(ingest($("#csvText").value)){ $("#dlgPaste").classList.remove("open"); persist(); } };
+$("#btnPrint").onclick=doPrint;
+$("#btnSave").onclick=saveNamed;
+$("#btnOpen").onclick=async()=>{ await renderSaved(); $("#dlgOpen").classList.add("open"); };
+$("#btnClear").onclick=()=>{ if(confirm("Empty every set? The song library stays.")){ sets=sets.map(()=>[]); cfg.slId=""; cfg.slName=""; renderSets(); } };
+$("#btnWipe").onclick=()=>{
+  if(!confirm("Remove every song from the library and empty all sets?\n\nSaved setlists are not affected.")) return;
+  library=[]; sets=sets.map(()=>[]); cfg.band="";
+  $("#search").value=""; $("#bandFilter").style.display="none";
+  renderSets(); toast("Library cleared");
+};
+$("#btnSongs").onclick=()=>{
+  const lib=document.querySelector(".library");
+  lib.classList.toggle("open");
+  $("#btnSongs").textContent = lib.classList.contains("open") ? "Hide songs" : "Songs";
+};
+$("#btnPurge").onclick=()=>{
+  const ghosts=new Set(library.filter(s=>s.ghost).map(s=>s.id));
+  if(!ghosts.size) return;
+  if(!confirm("Remove "+ghosts.size+" song"+(ghosts.size>1?"s":"")+" that are not in your sheet?\n\nThey will also come out of any set using them.")) return;
+  library=library.filter(s=>!s.ghost);
+  sets=sets.map(a=>a.filter(id=>!ghosts.has(id)));
+  renderSets(); toast("Removed "+ghosts.size);
+};
+$("#search").oninput=renderLibrary;
+$("#bandFilter").onchange=()=>{ cfg.band=$("#bandFilter").value; renderLibrary(); persist(); };
+$("#numSets").onchange=e=>{ cfg.numSets=Math.max(1,Math.min(8,+e.target.value||1)); e.target.value=cfg.numSets; renderSets(); };
+$("#target").onchange=e=>{ cfg.target=Math.max(5,+e.target.value||45); renderSets(); };
+$("#gap").onchange=e=>{ cfg.gap=Math.max(0,+e.target.value||0); renderSets(); };
+$("#optNotes").onchange=e=>{ cfg.notes=e.target.checked; renderSets(); };
+$("#optTimes").onchange=e=>{ cfg.times=e.target.checked; renderSets(); };
+$("#gigName").oninput=()=>renderSets();
+$("#gigDate").oninput=()=>renderSets();
+document.querySelectorAll("[data-close]").forEach(b=>b.onclick=()=>b.closest(".sheet").classList.remove("open"));
+document.querySelectorAll(".sheet").forEach(s=>s.onclick=e=>{ if(e.target===s) s.classList.remove("open"); });
+document.addEventListener("keydown",e=>{ if(e.key==="Escape") document.querySelectorAll(".sheet.open").forEach(s=>s.classList.remove("open")); });
+
+$("#apiUrl").onchange=()=>{ cfg.api=$("#apiUrl").value.trim(); cfg.slId=""; persist(); renderSaved(); };
+$("#btnPing").onclick=async()=>{
+  cfg.api=$("#apiUrl").value.trim(); persist();
+  if(!cfg.api){ toast("Paste the /exec URL first"); return; }
+  toast("Testing…");
+  try{ const r=await api("ping"); toast("Connected — writing to "+r.sheet); renderSaved(); }
+  catch(e){ toast("No answer — "+e.message); }
+};
+
+$("#btnExport").onclick=()=>{
+  const blob=new Blob([JSON.stringify(snapshot(),null,2)],{type:"application/json"});
+  const a=el("a"); a.href=URL.createObjectURL(blob);
+  a.download=(cfg.gig||"setlist").replace(/[^\w -]/g,"")+".json"; a.click();
+};
+$("#btnImport").onclick=()=>{
+  const inp=el("input"); inp.type="file"; inp.accept=".json";
+  inp.onchange=()=>{
+    const f=inp.files[0]; if(!f) return;
+    const r=new FileReader();
+    r.onload=()=>{ try{
+      const d=JSON.parse(r.result);
+      library=d.library||library; sets=d.sets||sets; cfg={...cfg,...(d.cfg||{})};
+      $("#numSets").value=cfg.numSets; $("#target").value=cfg.target; $("#gap").value=cfg.gap;
+      $("#gigName").value=cfg.gig||""; $("#gigDate").value=cfg.date||"";
+      buildBandFilter(library.some(s=>s.band));
+      $("#dlgOpen").classList.remove("open"); renderSets(); toast("Imported");
+    }catch(e){ toast("Bad file"); } };
+    r.readAsText(f);
+  };
+  inp.click();
+};
+
+let rz; window.addEventListener("resize",()=>{ clearTimeout(rz); rz=setTimeout(renderSets,140); });
+
+/* CONFIG wins over anything remembered from last time, so editing the file
+   is always the source of truth for a locked-down copy. */
+function applyConfig(){
+  if(CONFIG.SETS)       cfg.numSets=Math.max(1,Math.min(8,CONFIG.SETS));
+  if(CONFIG.TARGET_MIN) cfg.target=CONFIG.TARGET_MIN;
+  if(CONFIG.GAP_SEC!=null) cfg.gap=CONFIG.GAP_SEC;
+  if(CONFIG.SHEET_URL)  cfg.url=CONFIG.SHEET_URL;
+  if(CONFIG.TAB)        cfg.tab=CONFIG.TAB;
+  if(CONFIG.API)        cfg.api=CONFIG.API;
+
+  $("#numSets").value=cfg.numSets;
+  $("#target").value=cfg.target;
+  $("#gap").value=cfg.gap;
+  $("#sheetUrl").value=cfg.url||"";
+  $("#tabName").value=cfg.tab||"";
+  $("#apiUrl").value=cfg.api||"";
+
+  if(CONFIG.BAND){
+    const tag=$("#bandTag");
+    tag.textContent=CONFIG.BAND;
+    tag.style.display="block";
+    document.title=CONFIG.BAND+" — Setlist";
+    /* band is fixed, so the top field is only ever the venue now */
+    $("#gigName").placeholder="Venue";
+  }
+  if(CONFIG.SHEET_URL){
+    document.querySelectorAll("#sourceFld .src-ui").forEach(n=>n.style.display="none");
+    $("#btnLoad").textContent="Reload songs";
+    $("#btnLoad").title=(CONFIG.TAB||"first tab")+" — "+CONFIG.SHEET_URL;
+  }
+  if(CONFIG.API) $("#apiFld").style.display="none";
+}
+
+(async function init(){
+  await restore();
+  applyConfig();
+  renderSets();
+  if(CONFIG.SHEET_URL){ loadSheet(); return; }
+  if(!library.length) $("#dlgHelp").classList.add("open");
+})();
+</script>
+</body>
+</html>
