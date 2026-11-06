@@ -334,7 +334,6 @@ body.dragging-now,body.dragging-now *{cursor:grabbing !important}
   <button class="ghost" id="btnSave">Save</button>
   <button class="ghost" id="btnOpen">Open</button>
   <button class="ghost" id="btnClear">Clear sets</button>
-  <button class="ghost" id="btnWipe">Clear songs</button>
 </div>
 
 <div class="main">
@@ -383,10 +382,8 @@ body.dragging-now,body.dragging-now *{cursor:grabbing !important}
     </div>
     <div class="foot">
       <button class="ghost" id="btnResume" style="display:none">Resume unsaved</button>
-      <button class="ghost" id="btnExport">Export file</button>
-      <button class="ghost" id="btnImport">Import file</button>
       <button class="primary" id="btnNew">Start new</button>
-      <button data-close>Close</button>
+      <button id="btnCloseOpen" data-close>Close</button>
     </div>
   </div>
 </div>
@@ -469,7 +466,7 @@ const store = {
 let library = [];
 let sets = [[],[],[]];
 let draftSets = null;
-let cfg = { numSets:3, target:45, gap:25, notes:true, times:false, gig:"", date:"", url:"", tab:"", band:"", active:0, api:"", slId:"", slName:"", slUpdated:"" };
+let cfg = { numSets:3, target:45, gap:25, notes:true, times:false, gig:"", date:"", url:"", tab:"", band:"", active:0, api:"", slId:"", slName:"", slUpdated:"", slVenue:"", slDate:"" };
 
 const $ = s => document.querySelector(s);
 const el = (t,c,txt) => { const e=document.createElement(t); if(c) e.className=c; if(txt!=null) e.textContent=txt; return e; };
@@ -1163,6 +1160,7 @@ function applySetlist(d){
   sets=(d.sets||[]).map(a=>a.map(adoptSong).filter(Boolean));
   cfg.numSets=Math.max(1,Math.min(8,sets.length||1));
   cfg.slId=d.id||""; cfg.slName=d.name||""; cfg.slUpdated=d.updated||"";
+  cfg.slVenue=d.venue||""; cfg.slDate=d.date||"";
   cfg.gig=d.venue||""; cfg.date=d.date||"";
   $("#numSets").value=cfg.numSets;
   $("#gigName").value=cfg.gig; $("#gigDate").value=cfg.date;
@@ -1186,9 +1184,12 @@ function defaultName(){
     $("#gigDate").value=new Date().toLocaleDateString();
     cfg.date=$("#gigDate").value;
   }
-  const band=(CONFIG.BAND||cfg.band||$("#gigName").value).trim();
+  /* the band is already fixed per file, so the venue is what tells two
+     setlists apart; fall back to the band name only when no venue is typed */
+  const venue=$("#gigName").value.trim();
   const date=$("#gigDate").value.trim();
-  return [band,date].filter(Boolean).join(" \u2014 ") || "Setlist";
+  const who=venue || CONFIG.BAND || cfg.band || "";
+  return [who,date].filter(Boolean).join(" \u2014 ") || "Setlist";
 }
 /* Ask what to do when the sheet moved underneath us. */
 function askConflict(whenISO){
@@ -1206,7 +1207,13 @@ function askConflict(whenISO){
 }
 
 async function saveNamed(){
-  let name=prompt("Name this setlist:", cfg.slName || defaultName());
+  /* Untouched venue and date means you are re-saving the same gig, so keep its
+     name and update it. Change either one and it is a different gig, so the
+     default rebuilds from what is now in the fields. */
+  const sameGig = !!cfg.slId &&
+    $("#gigName").value.trim()===String(cfg.slVenue||"").trim() &&
+    $("#gigDate").value.trim()===String(cfg.slDate||"").trim();
+  let name=prompt("Name this setlist:", sameGig ? (cfg.slName||defaultName()) : defaultName());
   if(name==null) return;
   name=name.trim();
   if(!name) return;
@@ -1244,6 +1251,7 @@ async function saveNamed(){
         }
       }
       cfg.slId=r.id; cfg.slName=name; cfg.slUpdated=r.updated||"";
+      cfg.slVenue=$("#gigName").value.trim(); cfg.slDate=$("#gigDate").value.trim();
       persist(); updateNowName();
       if(r.rows!=null && r.rows!==built.onScreen){
         alert("Saved, but the counts do not match.\n\n"+
@@ -1270,6 +1278,9 @@ async function renderSaved(){
   const box=$("#savedList");
   const note=$("#storeNote");
   box.innerHTML="";
+  const hasCurrent=sets.slice(0,cfg.numSets).some(a=>a.length);
+  const cb=$("#btnCloseOpen");
+  if(cb) cb.style.display = hasCurrent ? "inline-block" : "none";
   const rb=$("#btnResume");
   if(rb){
     const n=draftSets ? draftSets.reduce((t,a)=>t+((a&&a.length)||0),0) : 0;
@@ -1343,13 +1354,9 @@ $("#btnPrint").onclick=doPrint;
 $("#btnSave").onclick=saveNamed;
 $("#btnOpen").onclick=async()=>{ await renderSaved(); $("#dlgOpen").classList.add("open"); };
 $("#btnClear").onclick=()=>{ if(confirm("Empty every set? The song library stays.")){ sets=sets.map(()=>[]); cfg.slId=""; cfg.slName=""; cfg.slUpdated=""; renderSets(); } };
-$("#btnWipe").onclick=()=>{
-  if(!confirm("Remove every song from the library and empty all sets?\n\nSaved setlists are not affected.")) return;
-  library=[]; sets=sets.map(()=>[]); cfg.band="";
-  $("#search").value=""; $("#bandFilter").style.display="none";
-  renderSets(); toast("Library cleared");
-};
 function startNew(){
+  if(sets.slice(0,cfg.numSets).some(a=>a.length) &&
+     !confirm("Clear the current setlist and start a new one?")) return;
   sets=[]; for(let i=0;i<cfg.numSets;i++) sets.push([]);
   cfg.slId=""; cfg.slName=""; cfg.slUpdated="";
   $("#dlgOpen").classList.remove("open");
@@ -1388,9 +1395,23 @@ $("#optNotes").onchange=e=>{ cfg.notes=e.target.checked; renderSets(); };
 $("#optTimes").onchange=e=>{ cfg.times=e.target.checked; renderSets(); };
 $("#gigName").oninput=()=>renderSets();
 $("#gigDate").oninput=()=>renderSets();
-document.querySelectorAll("[data-close]").forEach(b=>b.onclick=()=>b.closest(".sheet").classList.remove("open"));
-document.querySelectorAll(".sheet").forEach(s=>s.onclick=e=>{ if(e.target===s) s.classList.remove("open"); });
-document.addEventListener("keydown",e=>{ if(e.key==="Escape") document.querySelectorAll(".sheet.open").forEach(s=>s.classList.remove("open")); });
+/* Closing the Open dialog with nothing loaded would drop you on a blank screen
+   with no hint what to do, so it only closes once a setlist is in play. */
+function canDismiss(d){
+  if(!d || d.id!=="dlgOpen") return true;
+  return sets.slice(0,cfg.numSets).some(a=>a.length);
+}
+document.querySelectorAll("[data-close]").forEach(b=>b.onclick=()=>{
+  const d=b.closest(".sheet");
+  if(canDismiss(d)) d.classList.remove("open");
+});
+document.querySelectorAll(".sheet").forEach(sh=>sh.onclick=e=>{
+  if(e.target===sh && canDismiss(sh)) sh.classList.remove("open");
+});
+document.addEventListener("keydown",e=>{
+  if(e.key!=="Escape") return;
+  document.querySelectorAll(".sheet.open").forEach(sh=>{ if(canDismiss(sh)) sh.classList.remove("open"); });
+});
 
 $("#apiUrl").onchange=()=>{ cfg.api=$("#apiUrl").value.trim(); cfg.slId=""; persist(); renderSaved(); };
 $("#btnPing").onclick=async()=>{
@@ -1401,28 +1422,6 @@ $("#btnPing").onclick=async()=>{
   catch(e){ toast("No answer — "+e.message); }
 };
 
-$("#btnExport").onclick=()=>{
-  const blob=new Blob([JSON.stringify(snapshot(),null,2)],{type:"application/json"});
-  const a=el("a"); a.href=URL.createObjectURL(blob);
-  a.download=(cfg.gig||"setlist").replace(/[^\w -]/g,"")+".json"; a.click();
-};
-$("#btnImport").onclick=()=>{
-  const inp=el("input"); inp.type="file"; inp.accept=".json";
-  inp.onchange=()=>{
-    const f=inp.files[0]; if(!f) return;
-    const r=new FileReader();
-    r.onload=()=>{ try{
-      const d=JSON.parse(r.result);
-      library=d.library||library; sets=d.sets||sets; cfg={...cfg,...(d.cfg||{})};
-      $("#numSets").value=cfg.numSets; $("#target").value=cfg.target; $("#gap").value=cfg.gap;
-      $("#gigName").value=cfg.gig||""; $("#gigDate").value=cfg.date||"";
-      buildBandFilter(library.some(s=>s.band));
-      $("#dlgOpen").classList.remove("open"); renderSets(); toast("Imported");
-    }catch(e){ toast("Bad file"); } };
-    r.readAsText(f);
-  };
-  inp.click();
-};
 
 let rz; window.addEventListener("resize",()=>{ clearTimeout(rz); rz=setTimeout(renderSets,140); });
 
