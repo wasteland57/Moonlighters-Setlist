@@ -37,6 +37,8 @@ body{
 }
 .brand{font-family:var(--disp);font-weight:700;font-size:21px;letter-spacing:.22em;text-transform:uppercase}
 .brand span{color:var(--hi)}
+.nowname{font-family:var(--disp);font-size:12px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--hi);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:34vw}
 .bandtag{font-family:var(--disp);font-size:13px;letter-spacing:.18em;text-transform:uppercase;
   color:var(--manila-lt);opacity:.8;border-left:1px solid #4a4536;padding-left:18px}
 .gigmeta{display:flex;gap:8px;align-items:center;margin-left:auto}
@@ -303,6 +305,7 @@ body.dragging-now,body.dragging-now *{cursor:grabbing !important}
 <div class="topbar">
   <div class="brand">Set<span>·</span>List</div>
   <div class="bandtag" id="bandTag" style="display:none"></div>
+  <div class="nowname" id="nowName"></div>
   <div class="gigmeta">
     <button id="btnSongs">Songs</button>
     <input id="gigName" type="text" placeholder="Band / venue" size="22">
@@ -366,7 +369,7 @@ body.dragging-now,body.dragging-now *{cursor:grabbing !important}
 
 <div class="sheet" id="dlgOpen">
   <div class="card">
-    <h2>Saved setlists</h2>
+    <h2>Open a setlist</h2>
     <div class="body">
       <div style="margin-bottom:12px">
         <div class="fld" id="apiFld" style="margin-bottom:5px">
@@ -379,9 +382,27 @@ body.dragging-now,body.dragging-now *{cursor:grabbing !important}
       <div id="savedList"></div>
     </div>
     <div class="foot">
+      <button class="ghost" id="btnResume" style="display:none">Resume unsaved</button>
       <button class="ghost" id="btnExport">Export file</button>
       <button class="ghost" id="btnImport">Import file</button>
+      <button class="primary" id="btnNew">Start new</button>
       <button data-close>Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="sheet" id="dlgConflict">
+  <div class="card">
+    <h2>Someone else saved this</h2>
+    <div class="body">
+      <p class="hint" style="margin-top:0">This setlist was changed in the sheet at
+        <strong id="cfWhen"></strong>, after you opened it. Saving over it would
+        discard whatever they did.</p>
+    </div>
+    <div class="foot">
+      <button class="ghost" id="cfCancel">Cancel</button>
+      <button class="ghost" id="cfOverwrite">Overwrite theirs</button>
+      <button class="primary" id="cfCopy">Save as a copy</button>
     </div>
   </div>
 </div>
@@ -447,7 +468,8 @@ const store = {
 /* ============ state ============ */
 let library = [];
 let sets = [[],[],[]];
-let cfg = { numSets:3, target:45, gap:25, notes:true, times:false, gig:"", date:"", url:"", tab:"", band:"", active:0, api:"", slId:"", slName:"" };
+let draftSets = null;
+let cfg = { numSets:3, target:45, gap:25, notes:true, times:false, gig:"", date:"", url:"", tab:"", band:"", active:0, api:"", slId:"", slName:"", slUpdated:"" };
 
 const $ = s => document.querySelector(s);
 const el = (t,c,txt) => { const e=document.createElement(t); if(c) e.className=c; if(txt!=null) e.textContent=txt; return e; };
@@ -549,6 +571,7 @@ function ingestRows(rows){
   remapSets(prev);
   buildBandFilter(iB>=0);
   renderSets();
+  updateNowName();
   const orphans=library.filter(s=>s.ghost).length;
   toast(orphans
     ? next.length+" from sheet · "+orphans+" kept from setlists"
@@ -682,6 +705,12 @@ function buildBandFilter(has){
 }
 
 /* ============ library ============ */
+function updateNowName(){
+  const n=$("#nowName");
+  if(!n) return;
+  const any=sets.slice(0,cfg.numSets).some(a=>a.length);
+  n.textContent = cfg.slName ? cfg.slName : (any ? "Unsaved setlist" : "");
+}
 function songById(id){ return library.find(s=>s.id===id); }
 function usedIds(){
   const m=new Map();
@@ -879,6 +908,7 @@ function renderSets(){
 
   }
   renderLibrary();
+  updateNowName();
   persist();
 }
 
@@ -1061,7 +1091,9 @@ async function restore(){
     if(d.cfg) cfg={...cfg,...d.cfg};
     if(d.v===DATA_VERSION){
       if(d.library) library=d.library;
-      if(d.sets) sets=d.sets;
+      /* held aside, not loaded: everyone opens to a blank slate and either
+         loads a saved setlist or starts a new one */
+      if(d.sets) draftSets=d.sets;
     } else {
       /* saved before the sample list was removed — keep settings, drop songs */
       library=[]; sets=[[],[],[]]; cfg.slId="";
@@ -1109,10 +1141,10 @@ function adoptSong(o){
   library.push({id,title:t,artist:"",notes:o.notes||"",seconds:parseLen(o.length),band:"",ghost:true});
   return id;
 }
-function payloadFor(name){
+function payloadFor(name, id){
   const dropped=[];
   const payload={
-    id: cfg.slId||"",
+    id: id||"",
     name: name,
     venue: cfg.gig||"",
     date: cfg.date||"",
@@ -1130,13 +1162,14 @@ function payloadFor(name){
 function applySetlist(d){
   sets=(d.sets||[]).map(a=>a.map(adoptSong).filter(Boolean));
   cfg.numSets=Math.max(1,Math.min(8,sets.length||1));
-  cfg.slId=d.id||""; cfg.slName=d.name||"";
+  cfg.slId=d.id||""; cfg.slName=d.name||""; cfg.slUpdated=d.updated||"";
   cfg.gig=d.venue||""; cfg.date=d.date||"";
   $("#numSets").value=cfg.numSets;
   $("#gigName").value=cfg.gig; $("#gigDate").value=cfg.date;
   buildBandFilter(library.some(x=>x.band));
   $("#dlgOpen").classList.remove("open");
   renderSets();
+  updateNowName();
   const orphans=library.filter(s=>s.ghost).length;
   toast(orphans
     ? "Opened — "+orphans+" song"+(orphans>1?"s":"")+" not in your sheet"
@@ -1157,12 +1190,32 @@ function defaultName(){
   const date=$("#gigDate").value.trim();
   return [band,date].filter(Boolean).join(" \u2014 ") || "Setlist";
 }
+/* Ask what to do when the sheet moved underneath us. */
+function askConflict(whenISO){
+  return new Promise(res=>{
+    let when=whenISO;
+    try{ when=new Date(whenISO).toLocaleString(); }catch(e){}
+    $("#cfWhen").textContent=when;
+    const d=$("#dlgConflict");
+    d.classList.add("open");
+    const done=v=>{ d.classList.remove("open"); res(v); };
+    $("#cfOverwrite").onclick=()=>done("overwrite");
+    $("#cfCopy").onclick=()=>done("copy");
+    $("#cfCancel").onclick=()=>done("cancel");
+  });
+}
+
 async function saveNamed(){
-  const name=prompt("Name this setlist:", cfg.slName || defaultName());
+  let name=prompt("Name this setlist:", cfg.slName || defaultName());
+  if(name==null) return;
+  name=name.trim();
   if(!name) return;
-  cfg.slName=name;
   if(!sets.slice(0,cfg.numSets).some(a=>a.length)){ toast("Add some songs first"); return; }
-  const built=payloadFor(name);
+  /* compare against the name it was LOADED under, before overwriting it.
+     Same name updates that setlist; a new name writes a separate one. */
+  const prevName=String(cfg.slName||"").trim();
+  const isUpdate = !!cfg.slId && name===prevName;
+  const built=payloadFor(name, isUpdate?cfg.slId:"");
   if(built.dropped.length){
     alert("These songs could not be saved and were left out:\n\n  "+
           built.dropped.join("\n  ")+
@@ -1170,24 +1223,44 @@ async function saveNamed(){
           "Reload songs and try again.");
   }
   if(cfg.api){
-    toast("Saving to sheet…");
+    toast("Saving to sheet\u2026");
     try{
-      const r=await api("save",{data:JSON.stringify(built.payload)});
-      cfg.slId=r.id; persist();
+      let mode = isUpdate ? "Updated" : "Saved as new";
+      let r=await api("save",{
+        data: JSON.stringify(built.payload),
+        base: isUpdate ? (cfg.slUpdated||"") : ""
+      });
+      if(r.conflict){
+        const choice=await askConflict(r.updated);
+        if(choice==="cancel"){ toast("Save cancelled \u2014 nothing written"); return; }
+        if(choice==="copy"){
+          name=name+" (copy)";
+          const b2=payloadFor(name,"");
+          r=await api("save",{data:JSON.stringify(b2.payload)});
+          mode="Saved as new";
+        } else {
+          r=await api("save",{data:JSON.stringify(built.payload),force:"1"});
+          mode="Overwrote";
+        }
+      }
+      cfg.slId=r.id; cfg.slName=name; cfg.slUpdated=r.updated||"";
+      persist(); updateNowName();
       if(r.rows!=null && r.rows!==built.onScreen){
         alert("Saved, but the counts do not match.\n\n"+
               "  On screen: "+built.onScreen+"\n"+
               "  Sent:      "+built.sending+"\n"+
               "  Written:   "+r.rows+"\n\n"+
               (built.sending!==built.onScreen
-                ? "The loss happened before sending — see the list above."
+                ? "The loss happened before sending \u2014 see the list above."
                 : "Everything was sent, so the rows were lost in the sheet itself."));
       } else {
-        toast("Saved to sheet — "+r.rows+" songs");
+        toast(mode+" \u201c"+name+"\u201d \u2014 "+r.rows+" songs");
       }
-    }catch(e){ toast("Save failed — "+e.message); }
+    }catch(e){ toast("Save failed \u2014 "+e.message); }
     return;
   }
+  cfg.slName=name;
+
   const all=await localAll();
   all.unshift({name,when:new Date().toISOString(),data:snapshot()});
   await store.set(K_SAVED,JSON.stringify(all.slice(0,40)));
@@ -1197,6 +1270,12 @@ async function renderSaved(){
   const box=$("#savedList");
   const note=$("#storeNote");
   box.innerHTML="";
+  const rb=$("#btnResume");
+  if(rb){
+    const n=draftSets ? draftSets.reduce((t,a)=>t+((a&&a.length)||0),0) : 0;
+    rb.style.display = n ? "inline-block" : "none";
+    rb.textContent = "Resume unsaved ("+n+")";
+  }
   if(cfg.api){
     note.innerHTML="Setlists save to the <b>Setlists</b> tab of your sheet — everyone with the link sees the same list.";
     box.appendChild(el("p","hint","Loading…"));
@@ -1209,7 +1288,9 @@ async function renderSaved(){
       const r=el("div","saved-row");
       const n=el("div","nm",it.name||it.id);
       const per=it.perSet ? Object.keys(it.perSet).sort((a,b)=>a-b).map(k=>it.perSet[k]).join(" · ") : "";
-      const bits=[it.venue,it.date,it.songs+" songs"+(per?" ("+per+")":"")].filter(Boolean).join(" · ");
+      let upd="";
+      if(it.updated){ try{ upd="saved "+new Date(it.updated).toLocaleString(); }catch(e){} }
+      const bits=[it.venue,it.date,it.songs+" songs"+(per?" ("+per+")":""),upd].filter(Boolean).join(" · ");
       n.appendChild(el("div","dt",bits));
       r.appendChild(n);
       const b1=el("button",null,"Open");
@@ -1261,12 +1342,29 @@ $("#btnPasteGo").onclick=()=>{ if(ingest($("#csvText").value)){ $("#dlgPaste").c
 $("#btnPrint").onclick=doPrint;
 $("#btnSave").onclick=saveNamed;
 $("#btnOpen").onclick=async()=>{ await renderSaved(); $("#dlgOpen").classList.add("open"); };
-$("#btnClear").onclick=()=>{ if(confirm("Empty every set? The song library stays.")){ sets=sets.map(()=>[]); cfg.slId=""; cfg.slName=""; renderSets(); } };
+$("#btnClear").onclick=()=>{ if(confirm("Empty every set? The song library stays.")){ sets=sets.map(()=>[]); cfg.slId=""; cfg.slName=""; cfg.slUpdated=""; renderSets(); } };
 $("#btnWipe").onclick=()=>{
   if(!confirm("Remove every song from the library and empty all sets?\n\nSaved setlists are not affected.")) return;
   library=[]; sets=sets.map(()=>[]); cfg.band="";
   $("#search").value=""; $("#bandFilter").style.display="none";
   renderSets(); toast("Library cleared");
+};
+function startNew(){
+  sets=[]; for(let i=0;i<cfg.numSets;i++) sets.push([]);
+  cfg.slId=""; cfg.slName=""; cfg.slUpdated="";
+  $("#dlgOpen").classList.remove("open");
+  renderSets(); toast("New setlist");
+}
+$("#btnNew").onclick=startNew;
+$("#btnResume").onclick=()=>{
+  if(!draftSets) return;
+  sets=draftSets.slice(0,8).map(a=>(a||[]).filter(id=>songById(id)));
+  while(sets.length<cfg.numSets) sets.push([]);
+  cfg.numSets=Math.max(1,Math.min(8,sets.length));
+  $("#numSets").value=cfg.numSets;
+  cfg.slId=""; cfg.slName=""; cfg.slUpdated="";
+  $("#dlgOpen").classList.remove("open");
+  renderSets(); toast("Resumed unsaved work");
 };
 $("#btnSongs").onclick=()=>{
   const lib=document.querySelector(".library");
@@ -1365,8 +1463,10 @@ function applyConfig(){
   await restore();
   applyConfig();
   renderSets();
-  if(CONFIG.SHEET_URL){ loadSheet(); return; }
-  if(!library.length) $("#dlgHelp").classList.add("open");
+  if(CONFIG.SHEET_URL) await loadSheet();
+  if(!library.length && !CONFIG.SHEET_URL){ $("#dlgHelp").classList.add("open"); return; }
+  await renderSaved();
+  $("#dlgOpen").classList.add("open");
 })();
 </script>
 </body>
